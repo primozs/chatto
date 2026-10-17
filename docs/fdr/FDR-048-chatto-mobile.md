@@ -1,12 +1,14 @@
 # FDR-048: Chatto Mobile
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-25
+**Last reviewed:** 2026-10-17
 
 ## Overview
 
-Chatto Mobile is an experimental iOS application that bundles the shared Chatto
-client. It connects to independent servers without running a local backend.
+Chatto Mobile is an experimental Capacitor shell that bundles the shared Chatto
+client. It connects to independent servers without running a local backend. iOS
+ships system authentication; Android adds a foreground realtime notification
+service without FCM.
 
 ## Behavior
 
@@ -43,30 +45,59 @@ client. It connects to independent servers without running a local backend.
 - Registered servers recover from failed startup discovery or session loading
   through the shared retry loop. Returning to the foreground triggers an
   immediate retry. Network failure does not start a new sign-in flow.
-- This first build has no native push or background-call support. Continuing
+- This first build has no APNs/FCM push or background-call support. Continuing
   calls with the phone locked remains a requirement for a later stage.
-- Distribution is through local Xcode builds and manual TestFlight uploads.
-  Public App Store distribution and release automation are deferred.
+- Android keeps a foreground service for the URL-active signed-in server. The
+  service opens `/api/realtime` (protocol v4), hydrates
+  `NotificationOccurrencesChangedEvent.created_notification_id` through
+  ConnectRPC `GetNotificationOccurrence`, and posts OS banners while the UI is
+  inactive. There is no Google Play Services push relay.
+- Android and iOS both use the built-in `eu.chattocorp.chatto.mobile` client
+  with Custom Tabs / `ASWebAuthenticationSession` (`ChattoAuthorization`).
+- Distribution is through local Xcode / Gradle builds and manual TestFlight or
+  sideload APKs. Public store distribution and release automation are deferred.
 
 ## Design Decisions
 
 ### 1. Share the frontend and add narrow native capabilities
 
-**Decision:** Bundle the existing frontend with Capacitor, starting with iOS.
-Use native system authentication as the first host capability.
-Keep the iOS Flat surface default separate from native capability detection;
-it changes presentation and does not grant access to a native operation.
+**Decision:** Bundle the existing frontend with Capacitor for iOS and Android.
+Use native system authentication (`ChattoAuthorization`) on both platforms with
+the official mobile OAuth client. On Android, add a foreground realtime
+notification service (no FCM). Keep the iOS Flat surface default separate from
+native capability detection; it changes presentation and does not grant access
+to a native operation.
 **Why:** This retains the shared interface and session behaviour while allowing
 later native media support. See ADR-072 and ADR-099.
-**Tradeoff:** WebKit behaviour still applies to the shared interface. Native
-integration requires device verification in addition to browser tests.
+**Tradeoff:** WebKit / WebView behaviour still applies to the shared interface.
+Native integration requires device verification in addition to browser tests.
 
 ### 2. Keep the first implementation small
 
-**Decision:** Retain webview session storage. Defer native push, native call
-ownership, a native offline store, and public App Store distribution.
-**Why:** First establish a working shell and authentication boundary.
+**Decision:** Retain webview session storage for the SPA. Prefer a foreground
+Android realtime listener over FCM. Do not persist the notification-service
+bearer in SharedPreferences or backup. Defer APNs/FCM push, native call
+ownership, a native offline store, and public store distribution.
+**Why:** First establish a working shell, authentication boundary, and
+self-hosted notification path without a vendor push relay.
 **Tradeoff:** This is a development prototype, not a complete mobile release.
+Android must keep a foreground service notification while listening; after
+process death the SPA must restart the service with a fresh token.
+
+### 3. Harden OAuth and notification deep links
+
+**Decision:** Custom Tabs cancel clears the pending authorize call after a short
+grace so a callback intent can win. Notification taps use a one-time
+process-local `openGate` plus a strict `/chat/{serverId}/…` path allowlist
+(reject traversal and non-chat routes). `buildPath` rejects unsafe id segments
+instead of rewriting them. Capacitor without `ChattoAuthorization` refuses
+WebView loopback OAuth. App backup is disabled; FileProvider is limited to app
+external-files and cache paths.
+**Why:** Sideloaded APKs still face forged intents, open redirects, and token
+exfiltration via backup.
+**Tradeoff:** Process death drops open gates (fail-closed). Allowlist rules are
+duplicated across Java, mobile glue, and the frontend helper until a shared
+source exists.
 
 ## Related
 

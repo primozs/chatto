@@ -5,10 +5,14 @@
   "loggingBehavior": "none",
   "server": {
     "hostname": "localhost",
-    "iosScheme": "capacitor"
+    "iosScheme": "capacitor",
+    "androidScheme": "https"
   },
   "ios": {
     "contentInset": "never"
+  },
+  "android": {
+    "allowMixedContent": false
   },
   "plugins": {
     "Keyboard": {

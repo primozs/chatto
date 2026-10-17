@@ -1,8 +1,31 @@
 node_modules/
 www/
+.capacitor/
+
+# iOS generated / local
 ios/App/App/public/
 ios/App/App/capacitor.config.json
 ios/App/App/config.xml
 ios/App/App.xcodeproj/xcuserdata/
 ios/App/App.xcodeproj/project.xcworkspace/xcuserdata/
 ios/App/CapApp-SPM/.build/
+
+# Android generated / local
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+android/captures/
+android/.externalNativeBuild/
+android/.cxx/
+android/*.iml
+android/app/*.iml
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+android/capacitor-cordova-android-plugins/
+
+# OS / editor
+.DS_Store
+*.log

@@ -1,9 +1,13 @@
 # Chatto Mobile
 
-Experimental iOS client. Capacitor embeds the shared static frontend without
-a Chatto backend. Android packaging, native push, and native calls are deferred.
+Experimental Capacitor clients that embed the shared static frontend without a
+Chatto backend.
 
-## Build and run
+- **iOS** — system authentication session, TestFlight / local Xcode builds.
+- **Android** — foreground realtime notification service (no FCM), WebView OAuth
+  with navigation capture, sideload APK builds.
+
+## iOS
 
 Install Xcode with an iOS Simulator runtime. From the repository root:
 
@@ -12,82 +16,56 @@ mise mobile-ios-build
 mise mobile-ios-open
 ```
 
-`mobile-ios-build` builds the frontend, copies its SPA shell and assets into the
-iOS project, and builds an unsigned Simulator app under
+`mobile-ios-build` builds the frontend, copies its SPA shell into the iOS
+project, and builds an unsigned Simulator app under
 `.context/mobile-ios-build/Build/Products/Debug-iphonesimulator/Chatto.app`.
-`mobile-ios-open` refreshes the bundle and opens Xcode. Choose an iPhone Simulator
-and select Run. For a physical device, select your development team in Xcode's
-Signing & Capabilities pane. The project selects the ChattoCorp team by default;
-contributors must select a team they can access. Signing secrets are not stored
-in this repository.
+`mobile-ios-open` refreshes the bundle and opens Xcode. Run
+`mise mobile-ios-sync` after frontend changes.
 
-Run `mise mobile-ios-sync` after frontend changes. Platform commands use the
-`mobile-ios-*` namespace; future Android commands will use `mobile-android-*`.
-The app serves bundled assets at
-the stable `capacitor://localhost` origin. Its persistent webview storage owns
-server registrations, preferences, and renewable sessions. This prototype does
-not add a separate Keychain credential store.
+Sign-in uses the built-in client `eu.chattocorp.chatto.mobile` with callback
+`eu.chattocorp.chatto.mobile:/oauth/callback`. The server must include that
+mobile OAuth registration.
+
+## Android
+
+Requires JDK 21+, Android SDK, and a device or emulator. From the repository
+root:
+
+```sh
+mise mobile-android-sync
+mise mobile-android-apk
+# or: mise mobile-android-run
+```
+
+`mobile-android-sync` builds the frontend, bundles `src/glue.ts` into
+`www/capacitor-glue.js`, and runs `cap sync android`. The foreground service
+opens `/api/realtime` (protocol v4) for the active signed-in server, hydrates
+created notification IDs through ConnectRPC, and posts OS banners while the UI
+is in the background. There is no FCM or Play Services push relay.
+
+Android sign-in uses the Capacitor HTTPS origin (`https://localhost`) with
+CIMD and WebView navigation capture. Prefer an HTTPS Chatto server the device
+can reach.
 
 ## Connect a server
 
-Use an HTTPS Chatto server that includes the mobile OAuth registration from
-[PR #2456](https://github.com/chattocorp/chatto/pull/2456).
-Existing releases without that registration cannot complete
-mobile sign-in. The client identity is `eu.chattocorp.chatto.mobile`; its only callback is
-`eu.chattocorp.chatto.mobile:/oauth/callback`. The native system authentication session
-owns sign-in presentation. PKCE, state validation, token exchange, and session
-registration remain in the shared frontend. Cancellation does not add a server.
-The app does not bypass certificate validation or enable insecure HTTP access.
+Use an HTTPS Chatto server. Existing releases without the mobile OAuth
+registration cannot complete iOS native sign-in. The app does not bypass
+certificate validation.
 
 ### Local development
 
 Start `mise dev` in a separate terminal and use the HTTPS server URL that it
-prints in the app's Add Server form. Keep that terminal running. The iOS app
-contains a frontend bundle; it does not start the development server or load
-frontend edits automatically. After frontend changes, run `mise mobile-ios-sync`
-and run the app again in Xcode.
-
-The Simulator must trust the certificate authority that issued the local
-server certificate. A physical iPhone also needs a server address that it can
-reach from its network; `localhost` on the phone refers to the phone itself.
-Keep certificate validation enabled on both.
-
-The client contacts only the servers selected by the user and the services
-needed by those servers, such as identity providers, asset hosts, and LiveKit.
-These systems can see the connecting device's IP address and the data needed
-for the requested operation. There is no mobile push gateway or analytics
-service in this prototype. Native bridge logging is disabled.
-
-## Manual TestFlight updates
-
-1. Check out the code to distribute and run `mise mobile-ios-open`. This rebuilds
-   the frontend and copies it into the native project. Xcode alone does not
-   rebuild the frontend. Sync also generates a 1024-pixel app icon without an
-   alpha channel, as required for upload.
-2. In Xcode, select the Chatto target and open General. Set Version to the intended
-   release, such as `0.5.0`, and increase Build above the latest uploaded build.
-3. Run the app on a physical device to check the changes.
-4. Select Any iOS Device (arm64), then Product > Archive.
-5. In Organizer, select the new archive, then Distribute App > App Store Connect.
-   Use automatic signing and upload the build.
-6. In App Store Connect > TestFlight, wait for processing, complete any required
-   compliance information, and add test notes. Add the build to the internal
-   tester group unless automatic distribution is enabled for that group.
-
-External testing requires TestFlight App Review. Uploading a build does not
-publish it on the public App Store. TestFlight builds expire after 90 days.
-See [Apple's TestFlight guide](https://developer.apple.com/testflight/).
+prints. After frontend changes, re-run the platform sync task and relaunch the
+app. The Simulator or emulator must trust the local CA; a physical device needs
+a reachable server address (`localhost` on the device is the device itself).
 
 ## Current limits
 
-- No native push notifications, incoming-call integration, or share extension.
-- Calls still use the shared web client. Continuing a call with the phone
-  locked is a required follow-up, not a supported property of this build.
-- No offline message store, automated release workflow, or in-app updater.
-  TestFlight manages beta updates.
-- Simulator build and launch do not verify physical-device media, authentication
-  with real providers, session restoration after an OS eviction, or networking
-  across Wi-Fi and mobile data.
+- No App Store / Play Store release automation.
+- Android notifications are a foreground service, not system push.
+- No offline message store or native incoming-call ownership.
+- iOS still has no native notification service in this tree.
 
 See [FDR-048](../../docs/fdr/FDR-048-chatto-mobile.md) and
 [ADR-099](../../docs/adr/ADR-099-capacitor-mobile-client.md).

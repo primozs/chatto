@@ -131,6 +131,11 @@ Mobile Components:
 - Capacitor Keyboard (https://github.com/ionic-team/capacitor-plugins) - MIT
   License; Copyright 2020-present Ionic. The mobile web bundle includes
   capacitor-keyboard-license.txt.
+- Capacitor Preferences and Status Bar
+  (https://github.com/ionic-team/capacitor-plugins) - MIT License
+- Capawesome Capacitor File Picker
+  (https://github.com/capawesome-team/capacitor-plugins) - MIT License
+- OkHttp (https://square.github.io/okhttp/) - Apache License 2.0
 - Capacitor's bundled Cordova compatibility code - Apache License 2.0;
   Copyright The Apache Software Foundation.
 

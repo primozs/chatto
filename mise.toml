@@ -279,6 +279,24 @@ depends = ["mobile-ios-sync"]
 dir = "apps/mobile"
 run = "pnpm build:ios"
 
+[tasks.mobile-android-sync]
+description = "Bundle the shared frontend and glue into the experimental Android app"
+depends = ["build-frontend"]
+dir = "apps/mobile"
+run = "pnpm sync:android"
+
+[tasks.mobile-android-apk]
+description = "Build a sideloadable Android debug APK"
+depends = ["build-frontend"]
+dir = "apps/mobile"
+run = "pnpm build:apk"
+
+[tasks.mobile-android-run]
+description = "Sync and run the experimental Android app on a connected device"
+depends = ["build-frontend"]
+dir = "apps/mobile"
+run = "pnpm run:android"
+
 [tasks.build-api-types]
 description = "Build the generated TypeScript API package"
 depends = ["setup-frontend"]
