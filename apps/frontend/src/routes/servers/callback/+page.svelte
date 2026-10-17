@@ -46,6 +46,8 @@
   }
 
   onMount(async () => {
+    void window.__CHATTO_OAUTH_END_CAPTURE?.();
+
     if (['popup', 'provider'].includes(page.url.searchParams.get('mode') ?? '')) {
       const popupResponse = oauthPopupResponseFromURL(page.url);
       if (!popupResponse) {

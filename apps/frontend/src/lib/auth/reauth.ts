@@ -34,6 +34,7 @@ import {
   MOBILE_CALLBACK,
   MOBILE_CLIENT_ID
 } from '$lib/desktop/nativeAuthorization';
+import { isCapacitorShell } from '$lib/capacitor/shell';
 import { m } from '$lib/i18n/messages';
 
 const POPUP_POLL_INTERVAL_MS = 250;
@@ -96,6 +97,12 @@ async function runServerOAuthFlow(
     );
     await openSignedInServer(serverId);
     return;
+  }
+  // Mobile shells must use ChattoAuthorization (Custom Tabs / ASWebAuthenticationSession)
+  // with MOBILE_CLIENT_ID. Loopback WebView OAuth is not a registered redirect for that client.
+  if (isCapacitorShell()) {
+    serverInfo.catch(() => {});
+    throw new Error('Native sign-in is required in the mobile app.');
   }
   const redirectUri = `${window.location.origin}/servers/callback?mode=popup`;
   const clientId = oauthClientIdForLocation(window.location, serverUrl);

@@ -3,6 +3,7 @@ import type { RegisteredServer } from '@chatto/client/server/registry';
 import { authorizationLaunchTarget } from '$lib/test-utils/authorizationWindow';
 
 const native = vi.hoisted(() => ({ available: false, authorize: vi.fn() }));
+const capacitor = vi.hoisted(() => ({ shell: false }));
 const activeServer = vi.hoisted(() => ({ id: 'origin' }));
 vi.mock('$lib/state/activeServer.svelte', () => ({ getActiveServer: () => activeServer.id }));
 vi.mock('$lib/client', async () => ({
@@ -27,6 +28,10 @@ vi.mock('$lib/desktop/nativeAuthorization', async (importOriginal) => ({
   ...(await importOriginal<typeof import('$lib/desktop/nativeAuthorization')>()),
   hasNativeAuthorization: () => native.available,
   authorizeNatively: native.authorize
+}));
+
+vi.mock('$lib/capacitor/shell', () => ({
+  isCapacitorShell: () => capacitor.shell
 }));
 
 const {
@@ -172,10 +177,59 @@ describe('remote server OAuth popup', () => {
     });
     native.available = false;
     native.authorize.mockReset();
+    capacitor.shell = false;
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it('refuses Capacitor WebView loopback OAuth when native authorization is unavailable', async () => {
+    capacitor.shell = true;
+    native.available = false;
+    const assign = vi.fn();
+    const capture = vi.fn(async () => {});
+    vi.stubGlobal('window', {
+      location: {
+        origin: 'https://localhost',
+        protocol: 'https:',
+        host: 'localhost',
+        hostname: 'localhost',
+        assign
+      },
+      __CHATTO_OAUTH_CAPTURE_NAVIGATIONS: capture
+    });
+    const { startRemoteReauthentication } = await import('./reauth');
+    await expect(startRemoteReauthentication(remote)).rejects.toThrow(/native sign-in/i);
+    expect(assign).not.toHaveBeenCalled();
+    expect(capture).not.toHaveBeenCalled();
+    expect(FakeBroadcastChannel.instances).toHaveLength(0);
+  });
+
+  it('uses the mobile OAuth client for Capacitor reauthentication via native authorization', async () => {
+    capacitor.shell = true;
+    native.available = true;
+    native.authorize.mockImplementation(async (raw: string, state: string) => {
+      const url = new URL(raw);
+      expect(url.searchParams.get('client_id')).toBe('eu.chattocorp.chatto.mobile');
+      expect(url.searchParams.get('redirect_uri')).toBe(
+        'eu.chattocorp.chatto.mobile:/oauth/callback'
+      );
+      return { state, code: 'native-code' };
+    });
+    const open = vi.fn();
+    const assign = vi.fn();
+    vi.stubGlobal('window', { open, location: { assign, origin: 'https://localhost' } });
+    const exchange = vi.fn(async () => tokenResponse());
+    vi.stubGlobal('fetch', exchange);
+    const { startRemoteReauthentication } = await import('./reauth');
+    await startRemoteReauthentication(remote);
+    expect(open).not.toHaveBeenCalled();
+    expect(assign).not.toHaveBeenCalled();
+    expect(JSON.parse(exchange.mock.calls[0]?.[1]?.body as string)).toMatchObject({
+      client_id: 'eu.chattocorp.chatto.mobile',
+      redirect_uri: 'eu.chattocorp.chatto.mobile:/oauth/callback'
+    });
   });
 
   it('completes native PKCE without opening a popup and persists the mobile session', async () => {

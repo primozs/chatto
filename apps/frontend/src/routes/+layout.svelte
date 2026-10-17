@@ -13,6 +13,7 @@
   import GlobalKeyboardShortcuts from '$lib/components/GlobalKeyboardShortcuts.svelte';
   import InputModalityTracker from '$lib/components/InputModalityTracker.svelte';
   import MobileSidebarChrome from '$lib/components/MobileSidebarChrome.svelte';
+  import CapacitorNativeNotifications from '$lib/components/CapacitorNativeNotifications.svelte';
   import NotificationSync from '$lib/components/NotificationSync.svelte';
   import UpdateNotifier from '$lib/components/UpdateNotifier.svelte';
   import { usePinchZoomPrevention } from '$lib/hooks/usePinchZoomPrevention.svelte';
@@ -114,6 +115,7 @@
 <InputModalityTracker />
 <ServerRuntimeCoordinator />
 <NotificationSync />
+<CapacitorNativeNotifications />
 <UpdateNotifier />
 
 {#if standaloneOAuth}
